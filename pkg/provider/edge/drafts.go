@@ -125,13 +125,14 @@ func (cl *Client) PostWebJSON(ctx context.Context, path string, req PostRequest)
 	if err != nil {
 		return nil, err
 	}
-	tape := cl.recorder(bytes.NewReader(data))
+	cl.record(redactJSONToken(data))
 	defer cl.record([]byte("\n\n"))
-	r, err := http.NewRequestWithContext(ctx, http.MethodPost, cl.webclientAPI+path, tape)
+	r, err := http.NewRequestWithContext(ctx, http.MethodPost, cl.webclientAPI+path, bytes.NewReader(data))
 	if err != nil {
 		return nil, err
 	}
 	r.Header.Set(hdrContentType, "application/json")
+	cl.setBearerAuth(r)
 	return do(ctx, cl.cl, r)
 }
 

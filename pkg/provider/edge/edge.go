@@ -200,7 +200,8 @@ type PostRequest interface {
 }
 
 const (
-	hdrContentType = "Content-Type"
+	hdrAuthorization = "Authorization"
+	hdrContentType   = "Content-Type"
 )
 
 // PostJSON posts a request to the edge API.  The request is marshalled to
@@ -214,9 +215,9 @@ func (cl *Client) PostJSON(ctx context.Context, path string, req PostRequest) (*
 	if err != nil {
 		return nil, err
 	}
-	tape := cl.recorder(bytes.NewReader(data))
+	cl.record(redactJSONToken(data))
 	defer cl.record([]byte("\n\n"))
-	r, err := http.NewRequestWithContext(ctx, http.MethodPost, cl.edgeAPI+path, tape)
+	r, err := http.NewRequestWithContext(ctx, http.MethodPost, cl.edgeAPI+path, bytes.NewReader(data))
 	if err != nil {
 		return nil, err
 	}
@@ -257,13 +258,14 @@ func (cl *Client) PostFormRaw(ctx context.Context, url string, form url.Values) 
 	if form["token"] == nil {
 		form.Set("token", cl.token)
 	}
-	r := cl.recorder(strings.NewReader(form.Encode()))
+	cl.record([]byte(redactFormToken(form).Encode()))
 	defer cl.record([]byte("\n\n"))
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, r)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(form.Encode()))
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set(hdrContentType, "application/x-www-form-urlencoded")
+	cl.setBearerAuth(req)
 	return do(ctx, cl.cl, req)
 }
 
@@ -391,6 +393,39 @@ func (cl *Client) recorder(r io.Reader) io.Reader {
 		return r
 	}
 	return io.TeeReader(r, cl.tape)
+}
+
+func (cl *Client) setBearerAuth(req *http.Request) {
+	if cl.token == "" {
+		return
+	}
+	req.Header.Set(hdrAuthorization, "Bearer "+cl.token)
+}
+
+func redactJSONToken(data []byte) []byte {
+	var body map[string]any
+	if err := json.Unmarshal(data, &body); err != nil {
+		return data
+	}
+	if _, ok := body["token"]; ok {
+		body["token"] = "[REDACTED]"
+	}
+	redacted, err := json.Marshal(body)
+	if err != nil {
+		return data
+	}
+	return redacted
+}
+
+func redactFormToken(form url.Values) url.Values {
+	redacted := make(url.Values, len(form))
+	for key, values := range form {
+		redacted[key] = append([]string(nil), values...)
+	}
+	if redacted.Has("token") {
+		redacted.Set("token", "[REDACTED]")
+	}
+	return redacted
 }
 
 // Pagination contains the pagination information.  It is truly fucked, Slack

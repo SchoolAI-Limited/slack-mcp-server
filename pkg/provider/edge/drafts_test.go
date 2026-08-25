@@ -1,6 +1,7 @@
 package edge
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -11,6 +12,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type closeBuffer struct {
+	bytes.Buffer
+}
+
+func (b *closeBuffer) Close() error {
+	return nil
+}
 
 type draftRoundTripper struct {
 	requests     []*http.Request
@@ -117,6 +126,63 @@ func TestDraftsCreateRequestShape(t *testing.T) {
 
 	fileIDs := decodeStringJSON[[]string](t, got["file_ids"])
 	assert.Empty(t, fileIDs)
+}
+
+func TestDraftRequestsUseBearerAuthWithoutRecordingCredential(t *testing.T) {
+	const token = "xoxc-secret-regression"
+
+	payload, err := NewDraftPayload("C123", "hello", "", false, "client-msg-1")
+	require.NoError(t, err)
+
+	tests := []struct {
+		name string
+		call func(*Client) error
+	}{
+		{
+			name: "list",
+			call: func(client *Client) error {
+				_, err := client.DraftsList(context.Background(), 100)
+				return err
+			},
+		},
+		{
+			name: "create",
+			call: func(client *Client) error {
+				_, err := client.DraftsCreate(context.Background(), payload)
+				return err
+			},
+		},
+		{
+			name: "update",
+			call: func(client *Client) error {
+				_, err := client.DraftsUpdate(context.Background(), "DRAFT123", "1772034406.5935090", payload)
+				return err
+			},
+		},
+		{
+			name: "delete",
+			call: func(client *Client) error {
+				return client.DraftsDelete(context.Background(), "DRAFT123", "1772034406.5935090")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rt := &draftRoundTripper{}
+			tape := &closeBuffer{}
+			client := newDraftTestClient(rt)
+			client.token = token
+			client.tape = tape
+
+			require.NoError(t, tt.call(client))
+			require.Len(t, rt.requests, 1)
+			assert.Equal(t, "Bearer "+token, rt.requests[0].Header.Get("Authorization"))
+			assert.Contains(t, rt.bodies[0], token, "Slack request body still carries the browser token")
+			assert.NotContains(t, tape.String(), token, "local request recording must not contain credentials")
+			assert.Contains(t, tape.String(), "REDACTED")
+		})
+	}
 }
 
 func TestDraftsUpdateRequestShape(t *testing.T) {
