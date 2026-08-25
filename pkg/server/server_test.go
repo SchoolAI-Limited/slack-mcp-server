@@ -116,6 +116,10 @@ func TestValidToolNames(t *testing.T) {
 			ToolSavedList:                   true,
 			ToolSavedUpdate:                 true,
 			ToolSavedClearCompleted:         true,
+			ToolDraftsList:                  true,
+			ToolDraftsCreate:                true,
+			ToolDraftsUpdate:                true,
+			ToolDraftsDelete:                true,
 		}
 
 		assert.Equal(t, len(expectedTools), len(ValidToolNames), "ValidToolNames should have %d tools", len(expectedTools))
@@ -148,6 +152,10 @@ func TestValidToolNames(t *testing.T) {
 		assert.Equal(t, "saved_list", ToolSavedList)
 		assert.Equal(t, "saved_update", ToolSavedUpdate)
 		assert.Equal(t, "saved_clear_completed", ToolSavedClearCompleted)
+		assert.Equal(t, "drafts_list", ToolDraftsList)
+		assert.Equal(t, "drafts_create", ToolDraftsCreate)
+		assert.Equal(t, "drafts_update", ToolDraftsUpdate)
+		assert.Equal(t, "drafts_delete", ToolDraftsDelete)
 	})
 }
 
@@ -480,4 +488,63 @@ func TestShouldAddTool_Matrix(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestShouldAddExplicitTool_Drafts(t *testing.T) {
+	t.Run("draft tools are not registered by default", func(t *testing.T) {
+		assert.False(t, shouldAddExplicitTool(ToolDraftsList, nil))
+		assert.False(t, shouldAddExplicitTool(ToolDraftsCreate, []string{}))
+		assert.False(t, shouldAddExplicitTool(ToolDraftsUpdate, []string{}))
+		assert.False(t, shouldAddExplicitTool(ToolDraftsDelete, []string{}))
+	})
+
+	t.Run("draft tools register only when explicitly enabled", func(t *testing.T) {
+		enabledTools := []string{ToolDraftsList, ToolDraftsCreate}
+		assert.True(t, shouldAddExplicitTool(ToolDraftsList, enabledTools))
+		assert.True(t, shouldAddExplicitTool(ToolDraftsCreate, enabledTools))
+		assert.False(t, shouldAddExplicitTool(ToolDraftsUpdate, enabledTools))
+		assert.False(t, shouldAddExplicitTool(ToolDraftsDelete, enabledTools))
+	})
+}
+
+func TestDraftToolSchemasExcludeSendScheduleAndAttachments(t *testing.T) {
+	for _, tool := range []mcp.Tool{
+		newDraftsListTool(),
+		newDraftsCreateTool(),
+		newDraftsUpdateTool(),
+		newDraftsDeleteTool(),
+	} {
+		t.Run(tool.Name, func(t *testing.T) {
+			forbidden := []string{
+				"date_scheduled",
+				"scheduled_send",
+				"send",
+				"post",
+				"file_ids",
+				"files",
+				"attachments",
+				"apiCall",
+				"endpoint",
+				"method",
+			}
+			for _, name := range forbidden {
+				assert.NotContains(t, tool.InputSchema.Properties, name)
+			}
+		})
+	}
+}
+
+func TestDraftToolSchemasRequiredFields(t *testing.T) {
+	createTool := newDraftsCreateTool()
+	assert.Subset(t, createTool.InputSchema.Required, []string{"channel_id", "text"})
+	assert.Contains(t, createTool.InputSchema.Properties, "broadcast")
+
+	updateTool := newDraftsUpdateTool()
+	assert.Subset(t, updateTool.InputSchema.Required, []string{"draft_id", "client_last_updated_ts", "channel_id", "text"})
+	assert.Contains(t, updateTool.InputSchema.Properties, "broadcast")
+
+	deleteTool := newDraftsDeleteTool()
+	assert.Subset(t, deleteTool.InputSchema.Required, []string{"draft_id", "client_last_updated_ts"})
+	assert.NotContains(t, deleteTool.InputSchema.Properties, "channel_id")
+	assert.NotContains(t, deleteTool.InputSchema.Properties, "thread_ts")
 }
