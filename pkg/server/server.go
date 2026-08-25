@@ -47,6 +47,10 @@ const (
 	ToolSavedList                   = "saved_list"
 	ToolSavedUpdate                 = "saved_update"
 	ToolSavedClearCompleted         = "saved_clear_completed"
+	ToolDraftsList                  = "drafts_list"
+	ToolDraftsCreate                = "drafts_create"
+	ToolDraftsUpdate                = "drafts_update"
+	ToolDraftsDelete                = "drafts_delete"
 )
 
 var ValidToolNames = []string{
@@ -72,6 +76,10 @@ var ValidToolNames = []string{
 	ToolSavedList,
 	ToolSavedUpdate,
 	ToolSavedClearCompleted,
+	ToolDraftsList,
+	ToolDraftsCreate,
+	ToolDraftsUpdate,
+	ToolDraftsDelete,
 }
 
 func ValidateEnabledTools(tools []string) error {
@@ -111,6 +119,92 @@ func shouldAddTool(name string, enabledTools []string, envVarName string) bool {
 	}
 
 	return false
+}
+
+func shouldAddExplicitTool(name string, enabledTools []string) bool {
+	return len(enabledTools) > 0 && slices.Contains(enabledTools, name)
+}
+
+func newDraftsListTool() mcp.Tool {
+	return mcp.NewTool(ToolDraftsList,
+		mcp.WithDescription("List active Slack-native unsent drafts. Requires xoxc/xoxd session tokens and explicit inclusion in SLACK_MCP_ENABLED_TOOLS."),
+		mcp.WithTitleAnnotation("List Drafts"),
+		mcp.WithReadOnlyHintAnnotation(true),
+		mcp.WithNumber("limit",
+			mcp.Description("Maximum number of active drafts to return. Default is 100."),
+			mcp.DefaultNumber(100),
+		),
+	)
+}
+
+func newDraftsCreateTool() mcp.Tool {
+	return mcp.NewTool(ToolDraftsCreate,
+		mcp.WithDescription("Create a Slack-native unsent draft. This does not send or schedule a message. Requires xoxc/xoxd session tokens and explicit inclusion in SLACK_MCP_ENABLED_TOOLS."),
+		mcp.WithTitleAnnotation("Create Draft"),
+		mcp.WithDestructiveHintAnnotation(false),
+		mcp.WithString("channel_id",
+			mcp.Required(),
+			mcp.Description("Slack channel, DM, or MPIM ID for the draft destination."),
+		),
+		mcp.WithString("text",
+			mcp.Required(),
+			mcp.Description("Draft body. Multiline text is preserved in Slack rich_text blocks."),
+		),
+		mcp.WithString("thread_ts",
+			mcp.Description("Parent message timestamp when creating a draft reply in a thread."),
+		),
+		mcp.WithBoolean("broadcast",
+			mcp.Description("If true, Slack will broadcast the drafted threaded reply when a human sends it. Requires thread_ts. Default is false."),
+			mcp.DefaultBool(false),
+		),
+	)
+}
+
+func newDraftsUpdateTool() mcp.Tool {
+	return mcp.NewTool(ToolDraftsUpdate,
+		mcp.WithDescription("Replace an existing Slack-native unsent draft. This does not send or schedule a message. Requires xoxc/xoxd session tokens and explicit inclusion in SLACK_MCP_ENABLED_TOOLS."),
+		mcp.WithTitleAnnotation("Update Draft"),
+		mcp.WithDestructiveHintAnnotation(false),
+		mcp.WithString("draft_id",
+			mcp.Required(),
+			mcp.Description("Exact draft ID returned by drafts_list or drafts_create."),
+		),
+		mcp.WithString("client_last_updated_ts",
+			mcp.Required(),
+			mcp.Description("Conflict timestamp from Slack for this exact draft. Short fractional values are padded to seven decimals before calling Slack."),
+		),
+		mcp.WithString("channel_id",
+			mcp.Required(),
+			mcp.Description("Slack channel, DM, or MPIM ID for the draft destination."),
+		),
+		mcp.WithString("text",
+			mcp.Required(),
+			mcp.Description("Replacement draft body. Multiline text is preserved in Slack rich_text blocks."),
+		),
+		mcp.WithString("thread_ts",
+			mcp.Description("Parent message timestamp when updating a draft reply in a thread."),
+		),
+		mcp.WithBoolean("broadcast",
+			mcp.Description("If true, Slack will broadcast the drafted threaded reply when a human sends it. Requires thread_ts. Default is false."),
+			mcp.DefaultBool(false),
+		),
+	)
+}
+
+func newDraftsDeleteTool() mcp.Tool {
+	return mcp.NewTool(ToolDraftsDelete,
+		mcp.WithDescription("Delete one Slack-native unsent draft by exact draft ID and conflict timestamp. It never searches by destination. Requires xoxc/xoxd session tokens and explicit inclusion in SLACK_MCP_ENABLED_TOOLS."),
+		mcp.WithTitleAnnotation("Delete Draft"),
+		mcp.WithDestructiveHintAnnotation(true),
+		mcp.WithString("draft_id",
+			mcp.Required(),
+			mcp.Description("Exact draft ID to delete."),
+		),
+		mcp.WithString("client_last_updated_ts",
+			mcp.Required(),
+			mcp.Description("Conflict timestamp from Slack for this exact draft. Short fractional values are padded to seven decimals before calling Slack."),
+		),
+	)
 }
 
 func NewMCPServer(provider *provider.ApiProvider, logger *zap.Logger, enabledTools []string) *MCPServer {
@@ -588,6 +682,27 @@ func NewMCPServer(provider *provider.ApiProvider, logger *zap.Logger, enabledToo
 				mcp.WithTitleAnnotation("Clear Completed Saved Items"),
 				mcp.WithDestructiveHintAnnotation(true),
 			), savedHandler.SavedClearCompletedHandler)
+		}
+	}
+
+	// Register draft tools only when explicitly named. This keeps the default
+	// read mount unchanged and keeps all draft mutations disabled by default.
+	if !provider.IsBotToken() && !provider.IsOAuth() {
+		draftsHandler := handler.NewDraftsHandler(provider, logger)
+		if shouldAddExplicitTool(ToolDraftsList, enabledTools) {
+			s.AddTool(newDraftsListTool(), draftsHandler.DraftsListHandler)
+		}
+
+		if shouldAddExplicitTool(ToolDraftsCreate, enabledTools) {
+			s.AddTool(newDraftsCreateTool(), draftsHandler.DraftsCreateHandler)
+		}
+
+		if shouldAddExplicitTool(ToolDraftsUpdate, enabledTools) {
+			s.AddTool(newDraftsUpdateTool(), draftsHandler.DraftsUpdateHandler)
+		}
+
+		if shouldAddExplicitTool(ToolDraftsDelete, enabledTools) {
+			s.AddTool(newDraftsDeleteTool(), draftsHandler.DraftsDeleteHandler)
 		}
 	}
 

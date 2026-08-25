@@ -236,6 +236,47 @@ Clear all completed saved items from the "Save for Later" panel. This is a bulk 
 
 - **Parameters:** None.
 
+### 19. drafts_list
+List active Slack-native unsent drafts.
+
+> **SchoolAI safety note:** Draft tools use undocumented Slack session endpoints and require browser session tokens (`xoxc`/`xoxd`). Slack may change these endpoints without notice. All four draft tools are registered only when explicitly listed in `SLACK_MCP_ENABLED_TOOLS`, including this read-only list tool.
+
+- **Parameters:**
+  - `limit` (number, default `100`): Maximum number of active drafts to return. Must be between 1 and 1000.
+
+### 20. drafts_create
+Create a Slack-native unsent draft addressed to a channel, DM, or thread.
+
+> **SchoolAI safety note:** This tool only creates an unsent Slack draft. It does not send, schedule, post, upload files, attach files, add reactions, join channels, or expose arbitrary Slack endpoints.
+
+- **Parameters:**
+  - `channel_id` (string, required): Slack channel, DM, or MPIM ID for the draft destination.
+  - `text` (string, required): Draft body. Multiline text is preserved in Slack `rich_text` blocks.
+  - `thread_ts` (string, optional): Parent message timestamp when creating a draft reply in a thread.
+  - `broadcast` (boolean, default `false`): If true, Slack will broadcast the drafted threaded reply when a human sends it. Requires `thread_ts`.
+
+### 21. drafts_update
+Replace an existing Slack-native unsent draft.
+
+> **SchoolAI safety note:** Updates require Slack's exact draft ID and conflict timestamp from `drafts_list` or `drafts_create`. Short fractional timestamps are padded to Slack's seven-decimal draft timestamp format.
+
+- **Parameters:**
+  - `draft_id` (string, required): Exact draft ID.
+  - `client_last_updated_ts` (string, required): Conflict timestamp for this exact draft.
+  - `channel_id` (string, required): Slack channel, DM, or MPIM ID for the draft destination.
+  - `text` (string, required): Replacement draft body. Multiline text is preserved in Slack `rich_text` blocks.
+  - `thread_ts` (string, optional): Parent message timestamp when updating a draft reply in a thread.
+  - `broadcast` (boolean, default `false`): If true, Slack will broadcast the drafted threaded reply when a human sends it. Requires `thread_ts`.
+
+### 22. drafts_delete
+Delete one Slack-native unsent draft.
+
+> **SchoolAI safety note:** Delete requires the exact `draft_id` and `client_last_updated_ts`. The server does not auto-discover drafts and does not delete by channel, thread, or text.
+
+- **Parameters:**
+  - `draft_id` (string, required): Exact draft ID.
+  - `client_last_updated_ts` (string, required): Conflict timestamp for this exact draft.
+
 ## Resources
 
 The Slack MCP Server exposes two special directory resources for easy access to workspace metadata:
@@ -297,7 +338,7 @@ Fetches a CSV directory of all users in the workspace.
 | `SLACK_MCP_CHANNELS_CACHE`        | No        | `~/Library/Caches/slack-mcp-server/channels_cache_v2.json` (macOS)<br>`~/.cache/slack-mcp-server/channels_cache_v2.json` (Linux)<br>`%LocalAppData%/slack-mcp-server/channels_cache_v2.json` (Windows) | Path to the channels cache file. Used to cache Slack channel information to avoid repeated API calls on startup. |
 | `SLACK_MCP_LOG_LEVEL`             | No        | `info`                    | Log-level for stdout or stderr. Valid values are: `debug`, `info`, `warn`, `error`, `panic` and `fatal`                                                                                                                                                                                   |
 | `SLACK_MCP_GOVSLACK`              | No        | `nil`                     | Set to `true` to enable [GovSlack](https://slack.com/solutions/govslack) mode. Routes API calls to `slack-gov.com` endpoints instead of `slack.com` for FedRAMP-compliant government workspaces.                                                                                          |
-| `SLACK_MCP_ENABLED_TOOLS`         | No        | `nil`                     | Comma-separated list of tools to register. If empty, all read-only tools and usergroups tools are registered; write tools (`conversations_add_message`, `reactions_add`, `reactions_remove`, `attachment_get_data`) require their specific env var OR must be explicitly listed here. When a write tool is listed here, it's enabled without channel restrictions. Available tools: `conversations_history`, `conversations_replies`, `conversations_add_message`, `reactions_add`, `reactions_remove`, `attachment_get_data`, `conversations_search_messages`, `channels_list`, `usergroups_list`, `usergroups_me`, `usergroups_create`, `usergroups_update`, `usergroups_users_update`. |
+| `SLACK_MCP_ENABLED_TOOLS`         | No        | `nil`                     | Comma-separated list of tools to register. If empty, all read-only tools and usergroups tools are registered; write tools (`conversations_add_message`, `reactions_add`, `reactions_remove`, `attachment_get_data`) require their specific env var OR must be explicitly listed here. Draft tools (`drafts_list`, `drafts_create`, `drafts_update`, `drafts_delete`) also require explicit inclusion and xoxc/xoxd session auth. When a write tool is listed here, it's enabled without channel restrictions. Available tools: `conversations_history`, `conversations_replies`, `conversations_add_message`, `reactions_add`, `reactions_remove`, `attachment_get_data`, `conversations_search_messages`, `channels_list`, `usergroups_list`, `usergroups_me`, `usergroups_create`, `usergroups_update`, `usergroups_users_update`, `drafts_list`, `drafts_create`, `drafts_update`, `drafts_delete`. |
 
 *You need one of: `xoxp` (user), `xoxb` (bot), or both `xoxc`/`xoxd` tokens for authentication.
 

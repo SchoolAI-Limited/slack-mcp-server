@@ -251,7 +251,7 @@ docker-compose up -d
 | Argument                    | Required ? | Description                                                                                                                                                                                                         |
 |-----------------------------|------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `--transport` or `-t`       | Yes        | Select transport for the MCP Server, possible values are: `stdio`, `sse`                                                                                                                                            |
-| `--enabled-tools` or `-e`   | No         | Comma-separated list of tools to register. If not set, all tools are registered. Runtime permissions (e.g., `SLACK_MCP_ADD_MESSAGE_TOOL`) are still enforced. Available tools: `conversations_history`, `conversations_replies`, `conversations_add_message`, `reactions_add`, `reactions_remove`, `attachment_get_data`, `conversations_search_messages`, `conversations_join`, `conversations_leave`, `conversations_unreads`, `conversations_mark`, `channels_list`, `channels_me`, `usergroups_list`, `usergroups_me`, `usergroups_create`, `usergroups_update`, `usergroups_users_update`, `users_search`. |
+| `--enabled-tools` or `-e`   | No         | Comma-separated list of tools to register. If not set, default read tools are registered and mutation tools stay off unless their specific env var enables them. Draft tools are never part of the default mount. Available tools include: `conversations_history`, `conversations_replies`, `conversations_add_message`, `reactions_add`, `reactions_remove`, `attachment_get_data`, `conversations_search_messages`, `conversations_join`, `conversations_leave`, `conversations_unreads`, `conversations_mark`, `channels_list`, `channels_me`, `usergroups_list`, `usergroups_me`, `usergroups_create`, `usergroups_update`, `usergroups_users_update`, `users_search`, `drafts_list`, `drafts_create`, `drafts_update`, `drafts_delete`. |
 
 ### Environment Variables
 
@@ -277,7 +277,7 @@ docker-compose up -d
 | `SLACK_MCP_CACHE_TTL`             | No        | `24h`                     | Cache time-to-live. Supports duration format (`24h`, `30m`) or seconds (`3600`). Set to `0` to disable TTL (cache forever). When the cache expires, stale data is served immediately while a background refresh fetches fresh data.                                                       |
 | `SLACK_MCP_MIN_REFRESH_INTERVAL`  | No        | `30s`                     | Minimum interval between forced cache refreshes. Prevents API abuse from repeated force-refresh requests. Supports duration format (`30s`, `1m`) or seconds (`60`). Set to `0` to disable rate limiting.                                                                                  |
 | `SLACK_MCP_LOG_LEVEL`             | No        | `info`                    | Log-level for stdout or stderr. Valid values are: `debug`, `info`, `warn`, `error`, `panic` and `fatal`                                                                                                                                                                                   |
-| `SLACK_MCP_ENABLED_TOOLS`         | No        | `nil`                     | Comma-separated list of tools to register. If empty, all read-only tools and usergroups tools are registered; write tools (`conversations_add_message`, `reactions_add`, `reactions_remove`, `attachment_get_data`) require their specific env var to be set OR must be explicitly listed here. When a write tool is listed here, it's enabled without channel restrictions. Available tools: `conversations_history`, `conversations_replies`, `conversations_add_message`, `reactions_add`, `reactions_remove`, `attachment_get_data`, `conversations_search_messages`, `conversations_join`, `conversations_leave`, `conversations_unreads`, `conversations_mark`, `channels_list`, `channels_me`, `usergroups_list`, `usergroups_me`, `usergroups_create`, `usergroups_update`, `usergroups_users_update`, `users_search`. |
+| `SLACK_MCP_ENABLED_TOOLS`         | No        | `nil`                     | Comma-separated list of tools to register. If empty, all read-only tools and usergroups tools are registered; write tools (`conversations_add_message`, `reactions_add`, `reactions_remove`, `attachment_get_data`) require their specific env var to be set OR must be explicitly listed here. Draft tools (`drafts_list`, `drafts_create`, `drafts_update`, `drafts_delete`) also require explicit inclusion and xoxc/xoxd session auth. When a write tool is listed here, it's enabled without channel restrictions. Available tools: `conversations_history`, `conversations_replies`, `conversations_add_message`, `reactions_add`, `reactions_remove`, `attachment_get_data`, `conversations_search_messages`, `conversations_join`, `conversations_leave`, `conversations_unreads`, `conversations_mark`, `channels_list`, `channels_me`, `usergroups_list`, `usergroups_me`, `usergroups_create`, `usergroups_update`, `usergroups_users_update`, `users_search`, `drafts_list`, `drafts_create`, `drafts_update`, `drafts_delete`. |
 
 ### Tool Registration and Permissions
 
@@ -290,6 +290,8 @@ Tools are controlled at two levels:
 Write tools (`conversations_add_message`, `reactions_add`, `reactions_remove`, `attachment_get_data`) are **not registered by default** to prevent accidental exposure. To enable them, you must either:
 1. Set their specific environment variable (e.g., `SLACK_MCP_ADD_MESSAGE_TOOL`), or
 2. Explicitly list them in `SLACK_MCP_ENABLED_TOOLS`
+
+Draft tools (`drafts_list`, `drafts_create`, `drafts_update`, `drafts_delete`) are **not registered by default** and do not have a tool-specific environment variable. To use them, explicitly list each draft tool in `SLACK_MCP_ENABLED_TOOLS` and authenticate with `SLACK_MCP_XOXC_TOKEN` plus `SLACK_MCP_XOXD_TOKEN`. They call Slack's undocumented `drafts.*` session endpoints, which may drift without notice.
 
 Usergroups tools (`usergroups_list`, `usergroups_me`, `usergroups_create`, `usergroups_update`, `usergroups_users_update`) are **registered by default**. They require appropriate OAuth scopes (`usergroups:read` for read operations, `usergroups:write` for write operations).
 
@@ -342,6 +344,20 @@ Expose only specific tools:
   "env": {
     "SLACK_MCP_XOXP_TOKEN": "xoxp-...",
     "SLACK_MCP_ENABLED_TOOLS": "channels_list,conversations_history"
+  }
+}
+```
+
+**Example 5: Enable Slack-native unsent drafts**
+
+This registers only draft tools. It lets SchoolAI create reversible Slack drafts and leaves direct or scheduled sending unavailable.
+
+```json
+{
+  "env": {
+    "SLACK_MCP_XOXC_TOKEN": "xoxc-...",
+    "SLACK_MCP_XOXD_TOKEN": "xoxd-...",
+    "SLACK_MCP_ENABLED_TOOLS": "drafts_list,drafts_create,drafts_update,drafts_delete"
   }
 }
 ```
