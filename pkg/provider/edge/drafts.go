@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"runtime/trace"
+	"strings"
 )
 
 // drafts.* API — internal Slack APIs for native unsent drafts.
@@ -136,6 +138,21 @@ func (cl *Client) PostWebJSON(ctx context.Context, path string, req PostRequest)
 	return do(ctx, cl.cl, r)
 }
 
+func (cl *Client) postDraftsDeleteForm(ctx context.Context, form url.Values) (*http.Response, error) {
+	if form["token"] == nil {
+		form.Set("token", cl.token)
+	}
+	cl.record([]byte(redactFormToken(form).Encode()))
+	defer cl.record([]byte("\n\n"))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, cl.webclientAPI+"drafts.delete", strings.NewReader(form.Encode()))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set(hdrContentType, "application/x-www-form-urlencoded")
+	cl.setBearerAuth(req)
+	return do(ctx, cl.cl, req)
+}
+
 func (cl *Client) DraftsList(ctx context.Context, limit int) (DraftsListResponse, error) {
 	ctx, task := trace.NewTask(ctx, "DraftsList")
 	defer task.End()
@@ -215,7 +232,7 @@ func (cl *Client) DraftsDelete(ctx context.Context, draftID, clientLastUpdatedTS
 		DraftID:             draftID,
 		ClientLastUpdatedTS: clientLastUpdatedTS,
 	}
-	resp, err := cl.PostForm(ctx, "drafts.delete", values(form, true))
+	resp, err := cl.postDraftsDeleteForm(ctx, values(form, true))
 	if err != nil {
 		return err
 	}

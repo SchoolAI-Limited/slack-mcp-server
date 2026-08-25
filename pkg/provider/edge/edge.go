@@ -265,7 +265,6 @@ func (cl *Client) PostFormRaw(ctx context.Context, url string, form url.Values) 
 		return nil, err
 	}
 	req.Header.Set(hdrContentType, "application/x-www-form-urlencoded")
-	cl.setBearerAuth(req)
 	return do(ctx, cl.cl, req)
 }
 

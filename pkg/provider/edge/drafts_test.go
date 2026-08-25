@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -185,6 +186,24 @@ func TestDraftRequestsUseBearerAuthWithoutRecordingCredential(t *testing.T) {
 	}
 }
 
+func TestPostFormRawDoesNotUseBearerAuthOrRecordCredential(t *testing.T) {
+	const token = "xoxc-secret-regression"
+
+	rt := &draftRoundTripper{}
+	tape := &closeBuffer{}
+	client := newDraftTestClient(rt)
+	client.token = token
+	client.tape = tape
+
+	_, err := client.PostFormRaw(context.Background(), "https://schoolai.slack.com/api/saved.list", url.Values{})
+	require.NoError(t, err)
+	require.Len(t, rt.requests, 1)
+	assert.Empty(t, rt.requests[0].Header.Get("Authorization"))
+	assert.Contains(t, rt.bodies[0], token, "Slack request body still carries the browser token")
+	assert.NotContains(t, tape.String(), token, "local request recording must not contain credentials")
+	assert.Contains(t, tape.String(), "REDACTED")
+}
+
 func TestDraftsUpdateRequestShape(t *testing.T) {
 	rt := &draftRoundTripper{}
 	client := newDraftTestClient(rt)
@@ -217,6 +236,7 @@ func TestDraftsDeleteRequestShape(t *testing.T) {
 	require.Len(t, rt.requests, 1)
 	assert.Equal(t, "https://schoolai.slack.com/api/drafts.delete", rt.requests[0].URL.String())
 	assert.Equal(t, "application/x-www-form-urlencoded", rt.requests[0].Header.Get("Content-Type"))
+	assert.Equal(t, "Bearer xoxc-test", rt.requests[0].Header.Get("Authorization"))
 
 	assert.Contains(t, rt.bodies[0], "draft_id=DRAFT123")
 	assert.Contains(t, rt.bodies[0], "client_last_updated_ts=1772034406.5935090")
