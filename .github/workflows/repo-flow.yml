@@ -1,0 +1,85 @@
+# SchoolAI's required checks for this fork (SchoolAI/sai-internal-apps docs/standards/repo-flow.md#ci).
+# Kept in its own file so upstream's workflows merge cleanly.
+#   test          upstream's unit tests on the PR's own code (upstream runs them on pull_request_target, which tests the base).
+#   no-user-data  hard rule 6: no user or customer data or credentials in git (scripts/check-no-data.mjs). No secrets.
+#   fleet-check   the internal-apps gate for this app (npm run apps -- check slack-mcp-server).
+name: repo-flow
+on:
+  pull_request:
+  push:
+    branches: [master]
+  merge_group:
+permissions:
+  contents: read
+concurrency:
+  group: repo-flow-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Install
+        run: make deps
+      - name: Test
+        run: make test
+
+  no-user-data:
+    name: no-user-data
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Data files, personal-data patterns and credential prefixes in tracked files. Prints file:line, never values.
+      - name: check-no-data
+        run: node scripts/check-no-data.mjs
+
+  fleet-check:
+    name: fleet-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # This app's slug in sai-internal-apps apps.json.
+      APP_SLUG: slack-mcp-server
+      # The org shares INTERNAL_APPS_READ_TOKEN with app repos (sai-internal-apps#137 item 9). Until it's shared,
+      # this job skips with a notice instead of failing, and isn't made a required check.
+      HAS_FLEET_TOKEN: ${{ secrets.INTERNAL_APPS_READ_TOKEN != '' }}
+    steps:
+      - name: Skip until the fleet read token is shared
+        if: env.HAS_FLEET_TOKEN != 'true'
+        run: echo "::notice::INTERNAL_APPS_READ_TOKEN isn't shared with this repo yet, so the fleet check was skipped (sai-internal-apps docs/standards/repo-flow.md#ci)"
+      - name: Check out sai-internal-apps (the registry and its checks)
+        if: env.HAS_FLEET_TOKEN == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: SchoolAI/sai-internal-apps
+          token: ${{ secrets.INTERNAL_APPS_READ_TOKEN }}
+          path: harness
+          persist-credentials: false
+      - name: Attach this repo where the checks expect it
+        if: env.HAS_FLEET_TOKEN == 'true'
+        uses: actions/checkout@v4
+        with:
+          path: harness/apps/${{ env.APP_SLUG }}
+          persist-credentials: false
+      - if: env.HAS_FLEET_TOKEN == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: harness/.nvmrc
+      # Fails only on adopted standards, for active apps. Everything else prints as advice.
+      - name: npm run apps -- check
+        if: env.HAS_FLEET_TOKEN == 'true'
+        working-directory: harness
+        run: npm run apps -- check "$APP_SLUG"

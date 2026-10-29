@@ -1,0 +1,23 @@
+name: Bug
+description: Something in this app doesn't work the way you expected
+title: "Bug: "
+type: Bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Say what happened and what you expected. Whoever picks it up writes the short PRFAQ (sai-internal-apps skills/write-github-issue). Never paste passwords, tokens, or student or customer personal data: use counts, IDs and links.
+  - type: textarea
+    id: happened
+    attributes: { label: What happened, description: "What you did, what you saw, and where (page or URL). A screenshot helps if it shows no personal data." }
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes: { label: What you expected }
+    validations: { required: true }
+  - type: dropdown
+    id: impact
+    attributes:
+      label: How much does it get in your way?
+      options: ["I can't do my work", "There's a workaround", "Minor"]
+    validations: { required: true }

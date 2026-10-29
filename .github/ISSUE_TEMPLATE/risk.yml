@@ -1,0 +1,13 @@
+name: Risk or security finding
+description: A sign-in, credential, data or exposure problem in this app. AI Operations may pull the app down first (sai-internal-apps standing approval).
+title: "Risk: "
+type: Bug
+labels: ["risk"]
+body:
+  - type: textarea
+    id: what
+    attributes: { label: What's exposed or at risk, description: "Location (file:line or URL) and who could reach what. Never paste secrets or personal data." }
+    validations: { required: true }
+  - type: textarea
+    id: done
+    attributes: { label: Containment so far, description: "Paused? Gated? Credentials rotated? Undo steps." }

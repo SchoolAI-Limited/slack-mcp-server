@@ -1,0 +1,22 @@
+name: Adopt this app
+description: This app is a retirement candidate until it earns its place. Make the case, or retire it (sai-internal-apps docs/standards/lifecycle.md).
+title: "Adopt: "
+type: Task
+labels: ["adopt"]
+body:
+  - type: input
+    id: slug
+    attributes: { label: App slug (apps.json) }
+    validations: { required: true }
+  - type: textarea
+    id: found
+    attributes: { label: What we found, description: "URL, repo, hosting, sign-in, connections, data class, owner. Evidence links. Never secrets." }
+    validations: { required: true }
+  - type: dropdown
+    id: decision
+    attributes:
+      label: Decision
+      options: ["Not yet", "Keep", "Retire", "Graduate"]
+  - type: textarea
+    id: gaps
+    attributes: { label: Gaps, in risk order, description: "From npm run apps -- check <slug>. Stops first." }

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Fleet-wide work, standards and the registry
+    url: https://github.com/SchoolAI/sai-internal-apps/issues
+    about: Work across many apps lives in sai-internal-apps. This repo tracks this app's own work.

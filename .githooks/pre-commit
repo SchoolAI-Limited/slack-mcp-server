@@ -1,0 +1,10 @@
+#!/bin/sh
+# Hard rule 6: no user or customer data, and no credentials, in git (SchoolAI/sai-internal-apps skills/handle-data).
+# Scans what's staged and prints file:line only, never a value. Turn it on once per clone:
+#   git config core.hooksPath .githooks
+# CI runs the same scan on every PR (the no-user-data job), so skipping this hook only moves the failure there.
+if ! command -v node >/dev/null 2>&1; then
+  echo "pre-commit: node not found, so the data scan didn't run here; CI's no-user-data job still will." >&2
+  exit 0
+fi
+exec node "$(git rev-parse --show-toplevel)/scripts/check-no-data.mjs" --staged
