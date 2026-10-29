@@ -1,0 +1,4 @@
+# Paths the data scan (scripts/check-no-data.mjs) skips, each with its reason.
+# Upstream maintainer's public security contact, published by the upstream project (korotovsky/slack-mcp-server); not user data.
+SECURITY.md
+manifest-dxt.json

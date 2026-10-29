@@ -1,0 +1,30 @@
+name: Security change by AI Operations
+description: AI Operations changed this app to contain a risk (paused, gated, a host removed, a credential rotated). Opened the same day, after containment.
+title: "Security change by AI Operations (YYYY-MM-DD): <slug>"
+type: Task
+labels: ["risk"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        AI Operations may pull any internal app down on any sign of risk, then tells its owner here (sai-internal-apps docs/playbooks/fleet-work.md#telling-owners). Never paste secrets or personal data: counts, IDs and links only.
+  - type: textarea
+    id: changed
+    attributes: { label: What changed, description: "Exactly what was done, by ID (service, host, credential name, never its value), and when." }
+    validations: { required: true }
+  - type: textarea
+    id: why
+    attributes: { label: Why, description: "The finding in plain words, and who could reach what before the change." }
+    validations: { required: true }
+  - type: textarea
+    id: undo
+    attributes: { label: Undo, description: "The recorded undo, and what must be true first (usually: the fix merged and npm run apps -- check <slug> passing)." }
+    validations: { required: true }
+  - type: textarea
+    id: owner
+    attributes: { label: What the owner needs to do, description: "The owner's next action, with a link to where it's done." }
+    validations: { required: true }
+  - type: input
+    id: record
+    attributes: { label: Action record, description: "The sai-internal-apps issue holding the dry run, approval and readback (SchoolAI/sai-internal-apps#N)." }
+    validations: { required: true }

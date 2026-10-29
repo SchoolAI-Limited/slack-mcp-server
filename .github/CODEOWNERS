@@ -1,0 +1,5 @@
+# Every change to this app needs a review from its owner or AI Operations
+# (SchoolAI/sai-internal-apps docs/standards/repo-flow.md). Branch rules require one code owner's approval.
+# Generated with `npm run apps -- codeowners <slug>` in sai-internal-apps; change the owner in apps.json first, then here.
+# This repo is outside the SchoolAI org, so it names a person from AI Operations instead of @SchoolAI/internal-apps.
+*  @calebhicks

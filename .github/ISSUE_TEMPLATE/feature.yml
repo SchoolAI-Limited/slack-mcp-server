@@ -1,0 +1,25 @@
+name: Feature or change
+description: Something this app should do, or do differently
+title: ""
+type: Feature
+body:
+  - type: textarea
+    id: prfaq
+    attributes:
+      label: Done when (PRFAQ)
+      description: "As if it's already done: who benefits and what's true for them, then the promises that prove it, each with its evidence. A requester can just describe what they want; whoever picks it up writes this (sai-internal-apps skills/write-github-issue)."
+      placeholder: |
+        **<Headline: the result in the reader's words>.** As of <date>, <who> can <what>, because <change>.
+
+        - [ ] <promise>: evidence <command, link or confirmation>
+        - [ ] <promise>: evidence <…>
+
+        Out of scope: <…>
+        Next: <who> does <what>, by <date>.
+    validations: { required: true }
+  - type: textarea
+    id: today
+    attributes: { label: What people do today, description: "The manual step or gap, with an example. Could an agent do the whole job, with a person reviewing the important decisions?" }
+  - type: textarea
+    id: connections
+    attributes: { label: New data or systems, description: "Any system this needs that the app's registry entry doesn't list yet (HubSpot, Google, a model). That system's owner approves adding it." }

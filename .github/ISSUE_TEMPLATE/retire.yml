@@ -1,0 +1,17 @@
+name: Retire an app
+description: Turn this app off, revoke everything in its vault and archive the repo (sai-internal-apps docs/playbooks/retire-an-app.md).
+title: "Retire: "
+type: Task
+labels: ["retire"]
+body:
+  - type: input
+    id: slug
+    attributes: { label: App slug (apps.json) }
+    validations: { required: true }
+  - type: textarea
+    id: why
+    attributes: { label: Why, and what replaces it }
+    validations: { required: true }
+  - type: textarea
+    id: credentials
+    attributes: { label: Credentials to revoke, description: "Each connection: system and 1Password item. Never values." }
