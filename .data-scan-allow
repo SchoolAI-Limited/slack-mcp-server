@@ -1,0 +1,4 @@
+# Paths the no-user-data scan skips (hard rule 6). Each needs a reason; a code owner reviews them.
+# Kept byte-identical to upstream korotovsky/slack-mcp-server so upstream merges stay clean.
+SECURITY.md  # upstream maintainer's published security contact, not user data
+manifest-dxt.json  # upstream author's published package metadata (JSON allows no inline comment)
